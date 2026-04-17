@@ -24,6 +24,12 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392  # v3.6.0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2  # v3.10.0
+
       - name: Install cosign
         uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003  # v4.1.1
 
@@ -48,3 +54,17 @@ jobs:
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32  # v4.1.0
         with:
           subject-path: dist/checksums.txt
+
+      - name: Set up Helm
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4  # v4.3.1
+        with:
+          version: v3.17.3
+
+      - name: Package and push Helm chart
+        run: |
+          TAG=${{ github.ref_name }}
+          VERSION=${TAG#v}
+          helm package charts/kryptlet --version "${VERSION}" --app-version "${TAG}"
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io \
+            -u ${{ github.actor }} --password-stdin
+          helm push "kryptlet-${VERSION}.tgz" oci://ghcr.io/thereisnotime/charts

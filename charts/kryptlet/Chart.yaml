@@ -1,0 +1,18 @@
+apiVersion: v2
+name: kryptlet
+description: Serve age-encrypted blobs over HTTP, decrypted on demand with a caller-supplied key
+type: application
+version: 0.0.0-dev
+appVersion: "dev"
+keywords:
+  - kryptlet
+  - age
+  - encryption
+  - secrets
+  - gitops
+home: https://github.com/thereisnotime/kryptlet
+sources:
+  - https://github.com/thereisnotime/kryptlet
+maintainers:
+  - name: thereisnotime
+    url: https://github.com/thereisnotime

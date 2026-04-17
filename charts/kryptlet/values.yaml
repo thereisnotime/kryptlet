@@ -1,0 +1,76 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/thereisnotime/kryptlet
+  pullPolicy: IfNotPresent
+  # Defaults to the chart's appVersion when empty
+  tag: ""
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: kryptlet.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 16Mi
+  limits:
+    cpu: 100m
+    memory: 64Mi
+
+# Directory inside the container where blob files are read from.
+blobDir: /etc/kryptlet/blobs
+
+# age-encrypted blobs to mount, keyed by filename (must end in .age).
+# Values are base64-encoded age ciphertext.
+# Generate: age -r <pubkey> myfile > myfile.age && base64 -w0 myfile.age
+# Example:
+#   blobs:
+#     myconfig.age: <base64>
+blobs: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: http
+  initialDelaySeconds: 3
+  periodSeconds: 5
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

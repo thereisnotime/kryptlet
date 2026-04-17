@@ -34,6 +34,49 @@ signs:
     signature: ${artifact}.bundle
     artifacts: checksum
 
+dockers:
+  - image_templates:
+      - "ghcr.io/thereisnotime/kryptlet:{{ .Tag }}-amd64"
+    goarch: amd64
+    dockerfile: Dockerfile.goreleaser
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source=https://github.com/thereisnotime/kryptlet"
+      - "--label=org.opencontainers.image.licenses=MIT"
+
+  - image_templates:
+      - "ghcr.io/thereisnotime/kryptlet:{{ .Tag }}-arm64"
+    goarch: arm64
+    dockerfile: Dockerfile.goreleaser
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source=https://github.com/thereisnotime/kryptlet"
+      - "--label=org.opencontainers.image.licenses=MIT"
+
+docker_manifests:
+  - name_template: "ghcr.io/thereisnotime/kryptlet:{{ .Tag }}"
+    image_templates:
+      - "ghcr.io/thereisnotime/kryptlet:{{ .Tag }}-amd64"
+      - "ghcr.io/thereisnotime/kryptlet:{{ .Tag }}-arm64"
+  - name_template: "ghcr.io/thereisnotime/kryptlet:v{{ .Major }}"
+    image_templates:
+      - "ghcr.io/thereisnotime/kryptlet:{{ .Tag }}-amd64"
+      - "ghcr.io/thereisnotime/kryptlet:{{ .Tag }}-arm64"
+  - name_template: "ghcr.io/thereisnotime/kryptlet:latest"
+    image_templates:
+      - "ghcr.io/thereisnotime/kryptlet:{{ .Tag }}-amd64"
+      - "ghcr.io/thereisnotime/kryptlet:{{ .Tag }}-arm64"
+
 sboms:
   - artifacts: archive
 

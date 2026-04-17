@@ -1,0 +1,20 @@
+kryptlet is running.
+
+  Service: {{ include "kryptlet.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}
+
+To add encrypted blobs, base64-encode your .age file and add it to values.yaml:
+
+  blobs:
+    myconfig.age: $(base64 -w0 myfile.age)
+
+Then fetch a blob with your age private key:
+
+  curl -H "Authorization: Bearer <AGE-SECRET-KEY-...>" \
+    http://<host>/v1/blob/myconfig
+
+{{- if .Values.ingress.enabled }}
+Ingress host(s):
+  {{- range .Values.ingress.hosts }}
+  - http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}/v1/blob/<name>
+  {{- end }}
+{{- end }}
