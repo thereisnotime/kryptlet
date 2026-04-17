@@ -4,10 +4,11 @@
 [![Image](https://github.com/thereisnotime/kryptlet/actions/workflows/image.yaml/badge.svg)](https://github.com/thereisnotime/kryptlet/actions/workflows/image.yaml)
 [![Release](https://github.com/thereisnotime/kryptlet/actions/workflows/release.yaml/badge.svg)](https://github.com/thereisnotime/kryptlet/actions/workflows/release.yaml)
 [![Latest Release](https://img.shields.io/github/v/release/thereisnotime/kryptlet)](https://github.com/thereisnotime/kryptlet/releases/latest)
+[![codecov](https://codecov.io/gh/thereisnotime/kryptlet/branch/main/graph/badge.svg)](https://codecov.io/gh/thereisnotime/kryptlet)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/thereisnotime/kryptlet)](go.mod)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thereisnotime/kryptlet)](https://goreportcard.com/report/github.com/thereisnotime/kryptlet)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/thereisnotime/kryptlet/badge)](https://securityscorecards.dev/viewer/?uri=github.com/thereisnotime/kryptlet)
-[![License](https://img.shields.io/github/license/thereisnotime/kryptlet)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 Cloud-native HTTP service that serves [age](https://age-encryption.org/)-encrypted files over HTTP, decrypting them on demand with the caller's key.
 
