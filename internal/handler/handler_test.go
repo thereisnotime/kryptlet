@@ -126,6 +126,35 @@ func TestGetBlob_EmptyName(t *testing.T) {
 	}
 }
 
+func TestGetBlob_ContentTypeJSON(t *testing.T) {
+	identity, err := age.GenerateX25519Identity()
+	if err != nil {
+		t.Fatalf("generate identity: %v", err)
+	}
+	dir := t.TempDir()
+	var buf bytes.Buffer
+	w, err := age.Encrypt(&buf, identity.Recipient())
+	if err != nil {
+		t.Fatalf("encrypt: %v", err)
+	}
+	_, _ = w.Write([]byte(`{"key":"value"}`))
+	_ = w.Close()
+	if err := os.WriteFile(filepath.Join(dir, "config.json.age"), buf.Bytes(), 0o600); err != nil {
+		t.Fatalf("write blob: %v", err)
+	}
+	h := handler.New(store.New(dir))
+	req := httptest.NewRequest(http.MethodGet, "/v1/blob/config.json", nil)
+	req.Header.Set("Authorization", "Bearer "+identity.String())
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("got %d, want 200", rr.Code)
+	}
+	if ct := rr.Header().Get("Content-Type"); ct != "application/json" {
+		t.Errorf("Content-Type: got %q, want %q", ct, "application/json")
+	}
+}
+
 func TestUnknownRoute(t *testing.T) {
 	h := handler.New(store.New(t.TempDir()))
 	req := httptest.NewRequest(http.MethodGet, "/unknown", nil)

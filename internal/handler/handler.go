@@ -3,7 +3,9 @@ package handler
 import (
 	"errors"
 	"log/slog"
+	"mime"
 	"net/http"
+	"path/filepath"
 	"strings"
 
 	"github.com/thereisnotime/kryptlet/internal/crypto"
@@ -66,7 +68,10 @@ func (h *Handler) getBlob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ct := http.DetectContentType(plaintext)
+	ct := mime.TypeByExtension(filepath.Ext(name))
+	if ct == "" {
+		ct = http.DetectContentType(plaintext)
+	}
 	w.Header().Set("Content-Type", ct)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	_, _ = w.Write(plaintext) // #nosec G705 -- plaintext originates from a server-controlled encrypted blob, not user input
