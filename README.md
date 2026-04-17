@@ -10,11 +10,7 @@
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/thereisnotime/kryptlet/badge)](https://securityscorecards.dev/viewer/?uri=github.com/thereisnotime/kryptlet)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-You have secrets. You need to fetch them remotely. You don't want to run Vault.
-
-kryptlet is a small HTTP service that serves [age](https://age-encryption.org/)-encrypted files. You encrypt your files once, commit the ciphertext to git (it's safe — it's ciphertext), and kryptlet serves them. To read a blob, the caller presents their age private key. Wrong key: `401`. Right key: plaintext. That's it.
-
-No Vault. No cloud-specific secret store. No agents or sidecars. No plaintext on disk. Just a private key per request.
+A lightweight HTTP service for serving [age](https://age-encryption.org/)-encrypted secrets. Encrypt your files, commit the ciphertext to git, point kryptlet at the directory. Callers supply their private key in a request header; kryptlet decrypts on the fly and returns the plaintext. Wrong key returns `401`. No Vault required.
 
 ```
   ┌──────────┐                                    ┌──────────────┐
@@ -26,19 +22,12 @@ No Vault. No cloud-specific secret store. No agents or sidecars. No plaintext on
                                                  reads *.age files
                                                          │
                                                  ┌───────▼───────┐
-                                                 │  config.age   │ ← encrypted, git-safe
+                                                 │  config.age   │ ← safe to commit
                                                  │  secrets.age  │
                                                  └───────────────┘
 ```
 
-## Features
-
-- **GitOps-native** — encrypted blobs are safe to store in git; review and diff them in PRs like any other file
-- **Any file type** — JSON, YAML, env files, TLS certificates, binaries — kryptlet does not care what you encrypted
-- **Per-blob keys** — each blob can have a different recipient key; wrong key returns `401`, not a server error
-- **Zero key retention** — private keys are accepted only in request headers and are never logged, stored, or cached
-- **Distroless image** — runs as uid 65532 with a read-only filesystem and all Linux capabilities dropped
-- **Tiny footprint** — single static binary, ~10m CPU / 16Mi memory at idle
+Each blob can use a different key. Access control falls out of the math — a caller without the right key simply cannot decrypt.
 
 ## Quick start
 
@@ -48,8 +37,8 @@ No Vault. No cloud-specific secret store. No agents or sidecars. No plaintext on
 age-keygen -o key.txt
 PUBLIC_KEY=$(grep 'public key' key.txt | awk '{print $NF}')
 
-age -r "$PUBLIC_KEY" config.json  > config.age
-age -r "$PUBLIC_KEY" secrets.env  > secrets.age
+age -r "$PUBLIC_KEY" config.json > config.age
+age -r "$PUBLIC_KEY" secrets.env > secrets.age
 ```
 
 ### 2. Mount into kryptlet
@@ -65,7 +54,7 @@ kubectl create configmap kryptlet-blobs \
 kubectl apply -f https://github.com/thereisnotime/kryptlet/releases/latest/download/kryptlet.yaml
 ```
 
-Or commit the `.age` files to git (they contain only ciphertext) and reference them in a ConfigMap — see the [deployment guides](#deployment) below.
+Or commit the `.age` files to git and reference them in a ConfigMap — see the [deployment guides](#deployment) below.
 
 ### 3. Query
 
@@ -76,102 +65,96 @@ curl -H "Authorization: Bearer $PRIVATE_KEY" \
   https://kryptlet.example.com/v1/blob/config
 ```
 
-## API reference
+## API
 
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/v1/blob/{name}` | Decrypt and return blob `{name}` |
-| `GET` | `/healthz` | Liveness probe — always `200 ok` |
-| `GET` | `/readyz` | Readiness probe — always `200 ok` |
+| `GET` | `/healthz` | Liveness probe |
+| `GET` | `/readyz` | Readiness probe |
 
 ### Authentication
 
-Supply the age private key in either header — `Authorization` is preferred so it aligns with standard Bearer token tooling:
+Pass the age private key in either header:
 
 | Header | Value |
 |--------|-------|
 | `Authorization` | `Bearer AGE-SECRET-KEY-1...` |
 | `X-Kryptlet-Key` | `AGE-SECRET-KEY-1...` |
 
+`Authorization` is preferred — it works out of the box with standard Bearer token tooling.
+
 ### Response codes
 
 | Code | Meaning |
 |------|---------|
-| `200` | Decrypted content; `Content-Type` is auto-detected from the bytes |
-| `401` | Missing key, malformed key, or wrong key for this blob |
-| `404` | Blob not found in the blob directory |
+| `200` | Decrypted content; `Content-Type` is auto-detected |
+| `401` | Missing, malformed, or wrong key for this blob |
+| `404` | Blob not found |
 | `500` | Internal error — check container logs |
 
 ## Configuration
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `KRYPTLET_ADDR` | `:8080` | TCP listen address |
+| `KRYPTLET_ADDR` | `:8080` | Listen address |
 | `KRYPTLET_BLOB_DIR` | `/etc/kryptlet/blobs` | Directory scanned for `*.age` files |
 
 ## Deployment
 
-Detailed guides live in [`docs/`](docs/):
+Detailed guides in [`docs/`](docs/):
 
-| Guide | Description |
-|-------|-------------|
-| [Helm](docs/deploy-helm.md) | Install via the OCI Helm chart (recommended) |
-| [Flux CD](docs/deploy-flux.md) | GitOps with HelmRelease or raw Kustomize |
+| Guide | |
+|-------|-|
+| [Helm](docs/deploy-helm.md) | OCI Helm chart (recommended) |
+| [Flux CD](docs/deploy-flux.md) | HelmRelease or raw Kustomize |
 | [Argo CD](docs/deploy-argocd.md) | Application manifest with Helm or raw manifests |
-| [Raw manifests](docs/deploy-raw.md) | Plain `kubectl apply` for a quick spin-up |
+| [Raw manifests](docs/deploy-raw.md) | Plain `kubectl apply` |
 
-### Multiple blobs, multiple keys
+### Multiple consumers, multiple keys
 
-Each blob can use a different encryption key. Access control falls out of the math — if the caller's key was not used to encrypt the blob, decryption fails:
+Encrypt each blob with its owner's public key. Each caller can only read what was encrypted for them:
 
 ```bash
-# Team A can only decrypt their blobs
-age -r "$TEAM_A_PUBKEY" team-a-config.json > team-a-config.age
-
-# Team B can only decrypt theirs
-age -r "$TEAM_B_PUBKEY" team-b-config.json > team-b-config.age
+age -r "$ALICE_PUBKEY" alice-config.json > alice-config.age
+age -r "$BOB_PUBKEY"   bob-secrets.env   > bob-secrets.env.age
 ```
+
+Alice's key decrypts `alice-config`, gets `401` on `bob-secrets.env`. Bob's key is the inverse.
 
 ## Local development
 
-Uses [Podman](https://podman.io/) and [just](https://github.com/casey/just):
+Requires [Podman](https://podman.io/) and [just](https://github.com/casey/just):
 
 ```bash
-# First-time setup: generate keypair, encrypt sample, build image, start container
-just dev-up
+just dev-up            # generate keypair, encrypt sample, build image, start container
+just dev-fetch         # fetch the sample blob (run in a second terminal)
 
-# In another terminal — fetch the sample blob
-just dev-fetch
-
-# Encrypt any of your own files and fetch them
 just dev-encrypt path/to/myfile.json
 just dev-fetch myfile.json
 
-# Stop the container with Ctrl-C, then rebuild after code changes
-just dev-build && just dev-run
+just dev-build && just dev-run   # rebuild after code changes
 ```
 
-The dev keypair is written to `dev/identity.txt` (gitignored). Encrypted blobs land in `dev/blobs/` (also gitignored).
+Dev keypair: `dev/identity.txt`. Encrypted blobs: `dev/blobs/`. Both gitignored.
 
 ## Building from source
 
-**Prerequisites:** Go 1.26+, [just](https://github.com/casey/just)
+Requires Go 1.26+ and [just](https://github.com/casey/just):
 
 ```bash
 git clone git@github.com:thereisnotime/kryptlet.git
 cd kryptlet
 
-just build     # → bin/kryptlet
-just test      # run tests with race detector
-just lint      # golangci-lint
-just fmt       # gofmt
+just build   # → bin/kryptlet
+just test    # tests with race detector
+just lint    # golangci-lint
+just fmt     # gofmt
 ```
 
 Pre-built binaries for Linux, macOS, and Windows (amd64/arm64) are on the [releases page](https://github.com/thereisnotime/kryptlet/releases).
 
 ## Security
-
-Private keys are accepted only via request headers, never written to disk, never logged, and discarded after each decryption. The blob directory is mounted read-only. The container runs as a non-root uid with no Linux capabilities.
 
 Report vulnerabilities via [SECURITY.md](SECURITY.md).
 
