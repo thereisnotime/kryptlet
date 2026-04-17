@@ -35,12 +35,18 @@ Each blob can use a different key. Access control falls out of the math — a ca
 |---|---|---|---|
 | Setup time | ~5 min | 2 days and a support ticket | 20 min + IAM therapy |
 | Monthly cost | $0 | $0 + your sanity | $0.40/secret + API call nickels |
+| RAM | 16Mi | 256Mi–1Gi per node | Amazon's problem |
+| CPU | 10m | enough to heat a small room | Amazon's problem |
 | Runs on your laptop | yes | technically | lol |
 | Audit log | git blame | yes | yes |
-| Secret rotation | re-encrypt, push | built-in | built-in |
-| Dependency | one binary | HA cluster + Consul + TLS + unsealing ritual | AWS account, VPC, IAM, endpoint policy |
-| What breaks at 3am | nothing | the unseal quorum | the IAM policy you wrote at 2am |
+| Secret rotation | re-encrypt, push, done | built-in | built-in |
+| Dynamic secrets | no | yes | yes |
+| Access control | "do you have the key?" | policies, roles, tokens, leases | IAM + resource policies + KMS grants |
+| Dependency | one binary, age | HA cluster + Consul + TLS + unsealing ritual | AWS account, VPC, IAM, endpoint policy |
+| Enterprise support | open a GitHub issue | yes ($) | yes ($$) |
+| What breaks at 3am | nothing, it's 200 lines of Go | the unseal quorum | the IAM policy you wrote at 2am |
 | Vendor lock-in | age (open standard) | Vault API | very yes |
+| Honest description | a glorified `age -d` with an HTTP wrapper | secret management done right | secret management done expensively |
 
 ## Quick start
 
