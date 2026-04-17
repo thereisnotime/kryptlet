@@ -10,7 +10,11 @@
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/thereisnotime/kryptlet/badge)](https://securityscorecards.dev/viewer/?uri=github.com/thereisnotime/kryptlet)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-Cloud-native HTTP service that serves [age](https://age-encryption.org/)-encrypted files over HTTP, decrypting them on demand with the caller's key.
+You have secrets. You need to fetch them remotely. You don't want to run Vault.
+
+kryptlet is a small HTTP service that serves [age](https://age-encryption.org/)-encrypted files. You encrypt your files once, commit the ciphertext to git (it's safe — it's ciphertext), and kryptlet serves them. To read a blob, the caller presents their age private key. Wrong key: `401`. Right key: plaintext. That's it.
+
+No Vault. No cloud-specific secret store. No agents or sidecars. No plaintext on disk. Just a private key per request.
 
 ```
   ┌──────────┐                                    ┌──────────────┐
@@ -26,8 +30,6 @@ Cloud-native HTTP service that serves [age](https://age-encryption.org/)-encrypt
                                                  │  secrets.age  │
                                                  └───────────────┘
 ```
-
-Encrypt files with `age`, commit the ciphertext to git, and let kryptlet serve them. No Vault. No cloud-specific secret store. No plaintext ever written to disk. Just a private key per request.
 
 ## Features
 
