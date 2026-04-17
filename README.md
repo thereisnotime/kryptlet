@@ -13,16 +13,18 @@
 Cloud-native HTTP service that serves [age](https://age-encryption.org/)-encrypted files over HTTP, decrypting them on demand with the caller's key.
 
 ```
-              ┌─────────────┐   GET /v1/blob/config        ┌──────────────┐
-              │   Caller    │ ─────────────────────────── ► │   kryptlet   │
-              │             │   Authorization: Bearer <key>  │              │
-              │             │ ◄ ─── decrypted bytes ──────   │              │
-              └─────────────┘                               └──────┬───────┘
-                                                                   │ reads
-                                                           ┌───────▼────────┐
-                                                           │  config.age    │ ← safe to commit
-                                                           │  secrets.age   │
-                                                           └────────────────┘
+  ┌──────────┐                                    ┌──────────────┐
+  │          │ ─── GET /v1/blob/config ──────────►│              │
+  │  caller  │     Bearer: AGE-SECRET-KEY-1...    │   kryptlet   │
+  │          │◄─── decrypted content ─────────────│              │
+  └──────────┘                                    └──────┬───────┘
+                                                         │
+                                                 reads *.age files
+                                                         │
+                                                 ┌───────▼───────┐
+                                                 │  config.age   │ ← encrypted, git-safe
+                                                 │  secrets.age  │
+                                                 └───────────────┘
 ```
 
 Encrypt files with `age`, commit the ciphertext to git, and let kryptlet serve them. No Vault. No cloud-specific secret store. No plaintext ever written to disk. Just a private key per request.
