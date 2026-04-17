@@ -54,14 +54,14 @@ func (h *Handler) getBlob(w http.ResponseWriter, r *http.Request) {
 			http.NotFound(w, r)
 			return
 		}
-		slog.Error("store read failed", "blob", name, "err", err)
+		slog.Error("store read failed", "blob", name, "err", err) // #nosec G706 -- name is sanitised by store.validateName
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
 	plaintext, err := crypto.Decrypt(ciphertext, key)
 	if err != nil {
-		slog.Warn("decryption failed", "blob", name)
+		slog.Warn("decryption failed", "blob", name) // #nosec G706 -- name is sanitised by store.validateName
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -69,7 +69,7 @@ func (h *Handler) getBlob(w http.ResponseWriter, r *http.Request) {
 	ct := http.DetectContentType(plaintext)
 	w.Header().Set("Content-Type", ct)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	_, _ = w.Write(plaintext)
+	_, _ = w.Write(plaintext) // #nosec G705 -- plaintext originates from a server-controlled encrypted blob, not user input
 }
 
 func extractKey(r *http.Request) string {
