@@ -29,6 +29,19 @@ A lightweight HTTP service for serving [age](https://age-encryption.org/)-encryp
 
 Each blob can use a different key. Access control falls out of the math — a caller without the right key simply cannot decrypt.
 
+## How it stacks up
+
+| | kryptlet | Vault | AWS Secrets Manager |
+|---|---|---|---|
+| Setup time | ~5 min | 2 days and a support ticket | 20 min + IAM therapy |
+| Monthly cost | $0 | $0 + your sanity | $0.40/secret + API call nickels |
+| Runs on your laptop | yes | technically | lol |
+| Audit log | git blame | yes | yes |
+| Secret rotation | re-encrypt, push | built-in | built-in |
+| Dependency | one binary | HA cluster + Consul + TLS + unsealing ritual | AWS account, VPC, IAM, endpoint policy |
+| What breaks at 3am | nothing | the unseal quorum | the IAM policy you wrote at 2am |
+| Vendor lock-in | age (open standard) | Vault API | very yes |
+
 ## Quick start
 
 ### 1. Encrypt a file
