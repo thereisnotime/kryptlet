@@ -66,6 +66,16 @@ helm upgrade kryptlet oci://ghcr.io/thereisnotime/charts/kryptlet \
   -f kryptlet-values.yaml
 ```
 
+## Blob naming
+
+The blob name used in the API is the filename **without the `.age` extension**:
+
+| File in ConfigMap | API path |
+|-------------------|----------|
+| `config.age` | `/v1/blob/config` |
+| `config.json.age` | `/v1/blob/config.json` |
+| `team-a-secrets.env.age` | `/v1/blob/team-a-secrets.env` |
+
 ## Query
 
 ```bash
@@ -75,7 +85,56 @@ curl -H "Authorization: Bearer $PRIVATE_KEY" \
   https://kryptlet.example.com/v1/blob/config
 ```
 
-The blob name is the filename without the `.age` extension.
+## Multiple blobs with different keys
+
+Each blob is encrypted independently — you can use a completely different key for each one. A caller with the wrong key gets a `401`; they cannot read blobs they were not given the key for.
+
+### 1. Generate a key pair per consumer
+
+```bash
+age-keygen -o alice.txt   # Alice's key pair
+age-keygen -o bob.txt     # Bob's key pair
+age-keygen -o ci.txt      # CI pipeline key pair
+
+ALICE_PUB=$(grep 'public key' alice.txt | awk '{print $NF}')
+BOB_PUB=$(grep  'public key' bob.txt   | awk '{print $NF}')
+CI_PUB=$(grep   'public key' ci.txt    | awk '{print $NF}')
+```
+
+### 2. Encrypt each file with its owner's key
+
+```bash
+age -r "$ALICE_PUB" alice-config.json  > alice-config.json.age
+age -r "$BOB_PUB"   bob-secrets.env    > bob-secrets.env.age
+age -r "$CI_PUB"    deploy-token.txt   > deploy-token.txt.age
+```
+
+### 3. Add all blobs to values.yaml
+
+```yaml
+blobs:
+  alice-config.json.age: $(base64 -w0 alice-config.json.age)
+  bob-secrets.env.age:   $(base64 -w0 bob-secrets.env.age)
+  deploy-token.txt.age:  $(base64 -w0 deploy-token.txt.age)
+```
+
+### 4. Each caller fetches only what they can decrypt
+
+```bash
+# Alice — decrypts her blob, gets 401 on Bob's
+curl -H "Authorization: Bearer $(grep AGE-SECRET-KEY alice.txt)" \
+  https://kryptlet.example.com/v1/blob/alice-config.json
+
+# Bob — decrypts his blob, gets 401 on Alice's
+curl -H "Authorization: Bearer $(grep AGE-SECRET-KEY bob.txt)" \
+  https://kryptlet.example.com/v1/blob/bob-secrets.env
+
+# CI — fetches the deploy token
+curl -H "Authorization: Bearer $(grep AGE-SECRET-KEY ci.txt)" \
+  https://kryptlet.example.com/v1/blob/deploy-token.txt
+```
+
+The private keys (`alice.txt`, `bob.txt`, `ci.txt`) never go in git. The `.age` ciphertext files are safe to commit — only the holder of the matching private key can read the content.
 
 ## Ingress
 
