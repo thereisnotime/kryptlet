@@ -44,3 +44,43 @@ encrypt file pubkey:
 
 run:
     KRYPTLET_BLOB_DIR=./testdata/blobs go run -ldflags '{{ldflags}}' .
+
+# ── dev (local Podman) ──────────────────────────────────────────────────────
+
+# Generate a test age keypair — saved to dev/identity.txt (gitignored)
+dev-keygen:
+    mkdir -p dev/blobs
+    @if [ ! -f dev/identity.txt ]; then \
+        age-keygen -o dev/identity.txt && echo "Keypair written to dev/identity.txt"; \
+    else \
+        echo "dev/identity.txt already exists, skipping"; \
+    fi
+    @echo "Public key: $(grep 'public key' dev/identity.txt | awk '{print $NF}')"
+
+# Encrypt a file into dev/blobs/ using the dev keypair: just dev-encrypt dev/sample.txt
+dev-encrypt file="dev/sample.txt":
+    @pubkey=$$(grep 'public key' dev/identity.txt | awk '{print $$NF}') && \
+    age -r "$$pubkey" {{file}} > "dev/blobs/$$(basename {{file}}).age" && \
+    chmod 644 "dev/blobs/$$(basename {{file}}).age" && \
+    echo "Encrypted → dev/blobs/$$(basename {{file}}).age  (fetch as: /v1/blob/$$(basename {{file}}))"
+
+# Build the kryptlet container image with Podman
+dev-build:
+    podman build -t {{binary}}:dev .
+
+# Run kryptlet in Podman with dev blobs mounted on localhost:8080
+dev-run:
+    podman run --rm -it \
+        -p 127.0.0.1:8080:8080 \
+        -v "$(pwd)/dev/blobs:/etc/kryptlet/blobs:ro,Z" \
+        -e KRYPTLET_ADDR=:8080 \
+        -e KRYPTLET_BLOB_DIR=/etc/kryptlet/blobs \
+        {{binary}}:dev
+
+# Fetch a blob from the running dev instance: just dev-fetch sample.txt
+dev-fetch blob="sample.txt":
+    @key=$$(grep '^AGE-SECRET-KEY' dev/identity.txt | head -1) && \
+    curl -sf -H "Authorization: Bearer $$key" http://localhost:8080/v1/blob/{{blob}}
+
+# First-time setup: keygen → encrypt sample → build → run
+dev-up: dev-keygen dev-encrypt dev-build dev-run

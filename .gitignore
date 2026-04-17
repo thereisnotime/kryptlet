@@ -4,3 +4,4 @@ dist/
 coverage.out
 .env
 *.age
+dev/identity.txt
