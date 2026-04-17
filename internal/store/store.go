@@ -54,7 +54,7 @@ func (s *Store) List() ([]string, error) {
 }
 
 func validateName(name string) error {
-	if name == "" || strings.ContainsAny(name, "/\\..") {
+	if name == "" || strings.ContainsAny(name, "/\\") || strings.Contains(name, "..") {
 		return fmt.Errorf("invalid blob name: %q", name)
 	}
 	return nil

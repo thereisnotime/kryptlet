@@ -35,10 +35,26 @@ func TestGet_NotFound(t *testing.T) {
 
 func TestGet_InvalidName(t *testing.T) {
 	s := store.New(t.TempDir())
-	for _, name := range []string{"../etc/passwd", "foo/bar", "", "..secret"} {
+	for _, name := range []string{"../etc/passwd", "foo/bar", "", "..secret", "..", "a/b", "a\\b"} {
 		if _, err := s.Get(name); err == nil {
 			t.Errorf("expected error for name %q, got nil", name)
 		}
+	}
+}
+
+func TestGet_DotInName(t *testing.T) {
+	dir := t.TempDir()
+	want := []byte("content")
+	if err := os.WriteFile(filepath.Join(dir, "test.json.age"), want, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s := store.New(dir)
+	got, err := s.Get("test.json")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if string(got) != string(want) {
+		t.Errorf("got %q, want %q", got, want)
 	}
 }
 
