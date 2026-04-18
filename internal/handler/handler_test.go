@@ -155,6 +155,41 @@ func TestGetBlob_ContentTypeJSON(t *testing.T) {
 	}
 }
 
+func TestGetBlob_PathTraversal(t *testing.T) {
+	s, key := newTestStore(t)
+	h := handler.New(s)
+	paths := []string{
+		"/v1/blob/../../../etc/passwd",
+		"/v1/blob/..%2f..%2fetc%2fpasswd",
+		"/v1/blob/foo/../bar",
+		"/v1/blob/..",
+		"/v1/blob/foo/bar",
+		"/v1/blob/foo\\bar",
+	}
+	for _, p := range paths {
+		req := httptest.NewRequest(http.MethodGet, p, nil)
+		req.Header.Set("Authorization", "Bearer "+key)
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, req)
+		if rr.Code == http.StatusOK {
+			t.Errorf("path %q returned 200, expected rejection", p)
+		}
+	}
+}
+
+func TestGetBlob_ClientIPHeaders(t *testing.T) {
+	s, key := newTestStore(t)
+	h := handler.New(s)
+	req := httptest.NewRequest(http.MethodGet, "/v1/blob/test", nil)
+	req.Header.Set("Authorization", "Bearer "+key)
+	req.Header.Set("X-Forwarded-For", "203.0.113.50, 70.41.3.18")
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Errorf("got %d, want 200", rr.Code)
+	}
+}
+
 func TestUnknownRoute(t *testing.T) {
 	h := handler.New(store.New(t.TempDir()))
 	req := httptest.NewRequest(http.MethodGet, "/unknown", nil)

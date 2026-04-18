@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -16,6 +17,8 @@ import (
 
 // Run starts the HTTP server and blocks until SIGINT or SIGTERM is received.
 func Run() {
+	configureLogging()
+
 	addr := getEnv("KRYPTLET_ADDR", ":8080")
 	blobDir := getEnv("KRYPTLET_BLOB_DIR", "/etc/kryptlet/blobs")
 
@@ -57,6 +60,21 @@ func Run() {
 		os.Exit(1)
 	}
 	<-done
+}
+
+func configureLogging() {
+	var level slog.Level
+	switch strings.ToLower(getEnv("KRYPTLET_LOG_LEVEL", "info")) {
+	case "debug":
+		level = slog.LevelDebug
+	case "warn":
+		level = slog.LevelWarn
+	case "error":
+		level = slog.LevelError
+	default:
+		level = slog.LevelInfo
+	}
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level})))
 }
 
 func getEnv(key, fallback string) string {
