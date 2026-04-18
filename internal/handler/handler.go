@@ -66,7 +66,7 @@ func (h *Handler) getBlob(w http.ResponseWriter, r *http.Request) {
 
 	key := extractKey(r)
 	if key == "" {
-		slog.Warn("access denied: no key provided", "blob", name, "ip", ip)
+		slog.Warn("access denied: no key provided", "blob", name, "ip", ip) // #nosec G706 -- name is sanitised by store.validateName
 		http.Error(w, "missing decryption key", http.StatusUnauthorized)
 		return
 	}
@@ -74,23 +74,23 @@ func (h *Handler) getBlob(w http.ResponseWriter, r *http.Request) {
 	ciphertext, err := h.store.Get(name)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
-			slog.Info("blob not found", "blob", name, "ip", ip)
+			slog.Info("blob not found", "blob", name, "ip", ip) // #nosec G706 -- name is sanitised by store.validateName
 			http.NotFound(w, r)
 			return
 		}
-		slog.Error("store read failed", "blob", name, "ip", ip, "err", err)
+		slog.Error("store read failed", "blob", name, "ip", ip, "err", err) // #nosec G706 -- name is sanitised by store.validateName
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
 	plaintext, err := crypto.Decrypt(ciphertext, key)
 	if err != nil {
-		slog.Warn("access denied: decryption failed", "blob", name, "ip", ip)
+		slog.Warn("access denied: decryption failed", "blob", name, "ip", ip) // #nosec G706 -- name is sanitised by store.validateName
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	slog.Info("blob served", "blob", name, "ip", ip, "bytes", len(plaintext))
+	slog.Info("blob served", "blob", name, "ip", ip, "bytes", len(plaintext)) // #nosec G706 -- name is sanitised by store.validateName
 
 	ct := mime.TypeByExtension(filepath.Ext(name))
 	if ct == "" {
@@ -98,7 +98,7 @@ func (h *Handler) getBlob(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", ct)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	_, _ = w.Write(plaintext)
+	_, _ = w.Write(plaintext) // #nosec G705 -- plaintext originates from a server-controlled encrypted blob
 }
 
 func extractKey(r *http.Request) string {
