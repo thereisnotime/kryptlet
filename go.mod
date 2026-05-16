@@ -1,6 +1,6 @@
 module github.com/thereisnotime/kryptlet
 
-go 1.26.2
+go 1.26.3
 
 require filippo.io/age v1.3.1
 
